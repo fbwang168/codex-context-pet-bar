@@ -1,0 +1,1 @@
+do shell script "cd '/Users/wang/Documents/Codex/2026-06-04/files-mentioned-by-the-user-f8f5d2fbfe4124366cfe97a1b4aaeb3a/outputs' && export TK_SILENCE_DEPRECATION=1 && nohup /usr/bin/python3 ./codex_context_pet_bar.py >/tmp/codex_context_pet_bar.log 2>&1 &"
