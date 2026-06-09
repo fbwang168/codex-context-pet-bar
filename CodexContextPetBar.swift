@@ -257,25 +257,17 @@ final class RoundedCardView: NSView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        let bubbleBounds = NSRect(x: 1, y: 1, width: bounds.width - 2, height: bounds.height - 10)
-        let path = NSBezierPath(roundedRect: bubbleBounds, xRadius: 18, yRadius: 18)
-        NSColor(calibratedRed: 0.08, green: 0.13, blue: 0.18, alpha: 0.58).setFill()
+        let cardBounds = NSRect(x: 1, y: 1, width: bounds.width - 2, height: bounds.height - 2)
+        let path = NSBezierPath(roundedRect: cardBounds, xRadius: 22, yRadius: 22)
+        NSColor(calibratedRed: 0.08, green: 0.13, blue: 0.18, alpha: 0.42).setFill()
         path.fill()
 
-        let tail = NSBezierPath()
-        tail.move(to: NSPoint(x: bounds.width * 0.72 - 12, y: bubbleBounds.maxY - 1))
-        tail.line(to: NSPoint(x: bounds.width * 0.72, y: bounds.maxY - 1))
-        tail.line(to: NSPoint(x: bounds.width * 0.72 + 16, y: bubbleBounds.maxY - 1))
-        tail.close()
-        NSColor(calibratedRed: 0.08, green: 0.13, blue: 0.18, alpha: 0.58).setFill()
-        tail.fill()
-
-        NSColor.white.withAlphaComponent(0.08).setStroke()
+        NSColor.white.withAlphaComponent(0.10).setStroke()
         path.lineWidth = 1
         path.stroke()
 
-        let shine = NSBezierPath(roundedRect: NSRect(x: 16, y: 10, width: bounds.width - 32, height: 18), xRadius: 9, yRadius: 9)
-        NSColor.white.withAlphaComponent(0.025).setFill()
+        let shine = NSBezierPath(roundedRect: NSRect(x: 18, y: 10, width: bounds.width - 36, height: 20), xRadius: 10, yRadius: 10)
+        NSColor.white.withAlphaComponent(0.018).setFill()
         shine.fill()
     }
 }
@@ -303,20 +295,20 @@ final class PillLabel: NSTextField {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let reader = ContextReader()
     let window = NSPanel(
-        contentRect: NSRect(x: 0, y: 0, width: 318, height: 92),
+        contentRect: NSRect(x: 0, y: 0, width: 360, height: 108),
         styleMask: [.borderless, .nonactivatingPanel],
         backing: .buffered,
         defer: false
     )
     let titleLabel = NSTextField(labelWithString: "上下文能量")
     let statsLabel = NSTextField(labelWithString: "Lv0 · 0% · XP0")
-    let modeLabel = PillLabel("当前", frame: NSRect(x: 18, y: 72, width: 38, height: 16))
+    let modeLabel = PillLabel("当前", frame: NSRect(x: 22, y: 82, width: 42, height: 18))
     let threadLabel = NSTextField(labelWithString: "Codex thread")
     let hintLabel = NSTextField(labelWithString: "状态很好 · 0/0")
     let switchButton = NSButton(title: "切换", target: nil, action: nil)
     let autoButton = NSButton(title: "自动", target: nil, action: nil)
     let closeButton = NSButton(title: "×", target: nil, action: nil)
-    let progress = ProgressView(frame: NSRect(x: 18, y: 42, width: 224, height: 10))
+    let progress = ProgressView(frame: NSRect(x: 22, y: 44, width: 252, height: 11))
     let readerQueue = DispatchQueue(label: "local.codex.contextpetbar.reader", qos: .utility)
     var manualMode = false
     var manualPath: URL?
@@ -350,38 +342,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             window.setFrameOrigin(NSPoint(x: x, y: y))
         }
 
-        let content = RoundedCardView(frame: NSRect(x: 0, y: 0, width: 318, height: 92))
+        let content = RoundedCardView(frame: NSRect(x: 0, y: 0, width: 360, height: 108))
         content.wantsLayer = true
-        content.layer?.cornerRadius = 24
+        content.layer?.cornerRadius = 22
         content.layer?.masksToBounds = false
         window.contentView = content
 
-        titleLabel.frame = NSRect(x: 18, y: 14, width: 88, height: 20)
+        titleLabel.frame = NSRect(x: 22, y: 14, width: 104, height: 24)
         titleLabel.textColor = .white
-        titleLabel.font = .systemFont(ofSize: 14, weight: .bold)
+        titleLabel.font = .systemFont(ofSize: 15, weight: .bold)
 
-        statsLabel.frame = NSRect(x: 112, y: 14, width: 150, height: 20)
+        statsLabel.frame = NSRect(x: 132, y: 14, width: 190, height: 24)
         statsLabel.textColor = NSColor(calibratedWhite: 0.98, alpha: 1)
         statsLabel.alignment = .right
         statsLabel.font = .systemFont(ofSize: 13, weight: .bold)
+        statsLabel.lineBreakMode = .byTruncatingTail
 
-        hintLabel.frame = NSRect(x: 18, y: 56, width: 208, height: 17)
-        hintLabel.textColor = NSColor(calibratedWhite: 1, alpha: 0.76)
-        hintLabel.font = .systemFont(ofSize: 10, weight: .medium)
+        hintLabel.frame = NSRect(x: 22, y: 62, width: 252, height: 20)
+        hintLabel.textColor = NSColor(calibratedWhite: 1, alpha: 0.82)
+        hintLabel.font = .systemFont(ofSize: 11, weight: .semibold)
 
         modeLabel.textColor = NSColor(calibratedWhite: 1, alpha: 0.94)
         modeLabel.font = .systemFont(ofSize: 9, weight: .bold)
-        modeLabel.layer?.backgroundColor = NSColor.systemGreen.withAlphaComponent(0.30).cgColor
+        modeLabel.layer?.backgroundColor = NSColor.systemGreen.withAlphaComponent(0.25).cgColor
 
-        threadLabel.frame = NSRect(x: 62, y: 71, width: 178, height: 17)
-        threadLabel.textColor = NSColor(calibratedWhite: 1, alpha: 0.86)
-        threadLabel.font = .systemFont(ofSize: 10, weight: .semibold)
+        threadLabel.frame = NSRect(x: 72, y: 81, width: 202, height: 21)
+        threadLabel.textColor = NSColor(calibratedWhite: 1, alpha: 0.88)
+        threadLabel.font = .systemFont(ofSize: 11, weight: .semibold)
         threadLabel.lineBreakMode = .byTruncatingTail
 
-        configureMiniButton(switchButton, frame: NSRect(x: 246, y: 38, width: 42, height: 19), action: #selector(showThreadMenu))
-        configureMiniButton(autoButton, frame: NSRect(x: 246, y: 61, width: 42, height: 19), action: #selector(enableAuto))
+        configureMiniButton(switchButton, frame: NSRect(x: 292, y: 40, width: 50, height: 22), action: #selector(showThreadMenu))
+        configureMiniButton(autoButton, frame: NSRect(x: 292, y: 68, width: 50, height: 22), action: #selector(enableAuto))
 
-        closeButton.frame = NSRect(x: 292, y: 12, width: 16, height: 16)
+        closeButton.frame = NSRect(x: 332, y: 12, width: 18, height: 18)
         closeButton.bezelStyle = .circular
         closeButton.isBordered = false
         closeButton.contentTintColor = NSColor.white.withAlphaComponent(0.56)
@@ -406,7 +399,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         button.isBordered = false
         button.wantsLayer = true
         button.layer?.cornerRadius = frame.height / 2
-        button.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.11).cgColor
+        button.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.10).cgColor
         button.contentTintColor = NSColor.white.withAlphaComponent(0.82)
         button.font = .systemFont(ofSize: 9, weight: .semibold)
         button.target = self
