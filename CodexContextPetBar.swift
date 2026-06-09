@@ -310,7 +310,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     )
     let titleLabel = NSTextField(labelWithString: "上下文能量")
     let statsLabel = NSTextField(labelWithString: "Lv0 · 0% · XP0")
-    let threadLabel = NSTextField(labelWithString: "自动跟随 · Codex thread")
+    let modeLabel = PillLabel("当前", frame: NSRect(x: 18, y: 72, width: 38, height: 16))
+    let threadLabel = NSTextField(labelWithString: "Codex thread")
     let hintLabel = NSTextField(labelWithString: "状态很好 · 0/0")
     let switchButton = NSButton(title: "切换", target: nil, action: nil)
     let autoButton = NSButton(title: "自动", target: nil, action: nil)
@@ -368,9 +369,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hintLabel.textColor = NSColor(calibratedWhite: 1, alpha: 0.76)
         hintLabel.font = .systemFont(ofSize: 10, weight: .medium)
 
-        threadLabel.frame = NSRect(x: 18, y: 72, width: 226, height: 15)
-        threadLabel.textColor = NSColor(calibratedWhite: 1, alpha: 0.50)
-        threadLabel.font = .systemFont(ofSize: 9, weight: .medium)
+        modeLabel.textColor = NSColor(calibratedWhite: 1, alpha: 0.94)
+        modeLabel.font = .systemFont(ofSize: 9, weight: .bold)
+        modeLabel.layer?.backgroundColor = NSColor.systemGreen.withAlphaComponent(0.30).cgColor
+
+        threadLabel.frame = NSRect(x: 62, y: 71, width: 178, height: 17)
+        threadLabel.textColor = NSColor(calibratedWhite: 1, alpha: 0.86)
+        threadLabel.font = .systemFont(ofSize: 10, weight: .semibold)
+        threadLabel.lineBreakMode = .byTruncatingTail
 
         configureMiniButton(switchButton, frame: NSRect(x: 246, y: 38, width: 42, height: 19), action: #selector(showThreadMenu))
         configureMiniButton(autoButton, frame: NSRect(x: 246, y: 61, width: 42, height: 19), action: #selector(enableAuto))
@@ -385,6 +391,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         content.addSubview(titleLabel)
         content.addSubview(statsLabel)
+        content.addSubview(modeLabel)
         content.addSubview(threadLabel)
         content.addSubview(progress)
         content.addSubview(hintLabel)
@@ -502,12 +509,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             hintLabel.stringValue = "状态很好 · \(compactNumber(state.contextTokens))/\(compactNumber(windowSize))"
         }
 
-        var threadName = state.threadName
-        if threadName.count > 16 {
-            threadName = String(threadName.prefix(15)) + "…"
+        var threadName = state.threadName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if threadName.isEmpty || threadName == "Codex thread" {
+            threadName = "当前对话"
         }
-        let mode = manualMode ? "手动" : "自动"
-        threadLabel.stringValue = "\(mode) · \(threadName)"
+        if threadName.count > 18 {
+            threadName = String(threadName.prefix(17)) + "…"
+        }
+        modeLabel.stringValue = manualMode ? "手动" : "当前"
+        modeLabel.layer?.backgroundColor = (manualMode ? NSColor.systemOrange : NSColor.systemGreen).withAlphaComponent(0.30).cgColor
+        threadLabel.stringValue = threadName
         statsLabel.stringValue = "Lv\(state.level) · \(percent)% · XP\(compactNumber(state.totalTokens))"
         progress.percent = Double(percent) / 100.0
         progress.needsDisplay = true
