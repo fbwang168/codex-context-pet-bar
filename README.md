@@ -4,11 +4,15 @@ Codex Context Pet Bar 是一个 macOS 悬浮小组件，用来显示当前 Codex
 
 这个项目的目标很简单：让你不用打开调试信息，也能快速判断一个 Codex 对话是否快要压缩，或者是否应该新开一个对话窗口。
 
-![Codex Context Pet Bar icon](./CodexContextPetBarIcon.png)
+![Codex Context Pet Bar icon](./assets/icons/CodexContextPetBarIcon.png)
 
 ## 它显示什么
 
-小组件上会显示这些内容：
+默认情况下，小组件会收成一根短进度条，放在 pet 附近时不容易挡住内容。短进度条里会显示 `Lv · % · XP`。
+
+点击短进度条后，会展开完整面板。展开后点击面板空白区域可以收回；按住拖动可以移动位置。
+
+展开后会显示这些内容：
 
 - `上下文能量`：当前对话已经塞进模型上下文的内容量，可以理解成一条能量条。
 - `Lv`：压缩等级。检测到明显的上下文压缩后会增加。它不是游戏等级，而是“这个对话整理过几次记忆”的近似计数。
@@ -76,13 +80,13 @@ Codex Context Pet Bar 是一个 macOS 悬浮小组件，用来显示当前 Codex
 关闭方式：
 
 - 点击小组件右上角的 `×`。
-- 或运行 `Stop Codex Context Pet Bar.command`。
+- 或运行 `scripts/Stop Codex Context Pet Bar.command`。
 
-## 为什么 GitHub Releases 里没有 app
+## GitHub Release 下载包
 
-把代码 push 到 GitHub 仓库，只会更新代码页面，不会自动生成 Release。
+把代码 push 到 GitHub 仓库，只会更新代码页面，不会自动生成下载包。
 
-`Releases` 是 GitHub 的“下载包发布区”。你需要手动创建一个 Release，并上传已经打包好的 `.zip` 文件。
+`Releases` 是 GitHub 的“下载包发布区”。本项目用 `scripts/Build Release.command` 生成 `.zip`，再上传到 Release。
 
 本项目建议上传的文件是：
 
@@ -95,41 +99,71 @@ dist/Codex Context Pet Bar.zip
 1. 打开 GitHub 仓库页面。
 2. 点击右侧或顶部的 `Releases`。
 3. 点击 `Draft a new release`。
-4. `Choose a tag` 填 `v0.6` 或更高版本号。
-5. Release title 填 `Codex Context Pet Bar v0.6`。
+4. `Choose a tag` 填 `v0.7` 或更高版本号。
+5. Release title 填 `Codex Context Pet Bar v0.7`。
 6. 把 `dist/Codex Context Pet Bar.zip` 拖进去上传。
 7. 点击 `Publish release`。
 
 发布后，别人就能在 Releases 页面下载 app。
 
-## 项目文件说明
+## 项目目录结构
 
-主要文件：
+整理后的目录如下：
 
-- `CodexContextPetBar.swift`：正式版本源码，使用 Swift + AppKit 编写。
-- `Codex Context Pet Bar.app`：已经编译好的 macOS app。
-- `AppIcon.icns`：app 图标文件。
-- `CodexContextPetBarIcon.png`：图标预览图。
-- `Launch Codex Context Pet Bar.command`：启动 app 的脚本。
-- `Stop Codex Context Pet Bar.command`：关闭 app 的脚本。
+```text
+.
+├── README.md
+├── app/
+│   └── Codex Context Pet Bar.app
+├── assets/
+│   └── icons/
+│       ├── AppIcon.icns
+│       ├── CodexContextPetBar.iconset/
+│       └── CodexContextPetBarIcon.png
+├── legacy/
+│   ├── Launch Codex Context Pet Bar.applescript
+│   └── codex_context_pet_bar.py
+├── scripts/
+│   ├── Build Release.command
+│   ├── Launch Codex Context Pet Bar.command
+│   └── Stop Codex Context Pet Bar.command
+└── src/
+    └── CodexContextPetBar.swift
+```
 
-历史原型文件：
+各目录用途：
 
-- `codex_context_pet_bar.py`：早期 Python/Tk 原型，已经不推荐使用。
-- `Launch Codex Context Pet Bar.applescript`：早期启动器，已经不推荐使用。
+- `src/`：正式源码。当前主程序是 `src/CodexContextPetBar.swift`。
+- `app/`：已经编译好的 macOS app，可以直接运行。
+- `assets/icons/`：app 图标源文件、iconset 和 `.icns`。
+- `scripts/`：给新手使用的双击脚本，用来启动、停止和打包。
+- `legacy/`：早期 Python/Tk 原型，保留作参考，已经不推荐使用。
+- `dist/`：本地打包输出目录，不提交到 Git。
 
 ## 从源码重新编译
 
-如果你改了 `CodexContextPetBar.swift`，可以用 macOS 自带的 Swift 编译器重新构建：
+最简单的方式是双击：
+
+```text
+scripts/Build Release.command
+```
+
+这个脚本会做三件事：
+
+- 用 macOS 自带 Swift 编译器编译 `src/CodexContextPetBar.swift`。
+- 把 `assets/icons/AppIcon.icns` 复制进 app。
+- 生成 `dist/Codex Context Pet Bar.zip`。
+
+如果你想手动编译，可以用：
 
 ```bash
-swiftc CodexContextPetBar.swift -o "Codex Context Pet Bar.app/Contents/MacOS/CodexContextPetBar"
+swiftc src/CodexContextPetBar.swift -o "app/Codex Context Pet Bar.app/Contents/MacOS/CodexContextPetBar"
 ```
 
 然后重新打开 app：
 
 ```bash
-open "Codex Context Pet Bar.app"
+open "app/Codex Context Pet Bar.app"
 ```
 
 如果已经有旧进程在运行，可以先停止：
@@ -140,11 +174,10 @@ pkill -f CodexContextPetBar
 
 ## 打包 Release zip
 
-推荐用下面的命令生成 Release 上传包：
+推荐直接运行：
 
 ```bash
-mkdir -p dist
-ditto -c -k --sequesterRsrc --keepParent "Codex Context Pet Bar.app" "dist/Codex Context Pet Bar.zip"
+./scripts/Build\ Release.command
 ```
 
 生成后，把 `dist/Codex Context Pet Bar.zip` 上传到 GitHub Releases。
@@ -168,4 +201,3 @@ ditto -c -k --sequesterRsrc --keepParent "Codex Context Pet Bar.app" "dist/Codex
 - `Lv` 是根据压缩事件或上下文量明显回落推断出来的，属于近似值。
 - 当前 app 是未签名版本，第一次打开时 macOS 可能需要右键打开。
 - 当前编译产物是 arm64，主要面向 Apple Silicon Mac。
-

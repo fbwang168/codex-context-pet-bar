@@ -1,5 +1,8 @@
 import Cocoa
 
+let collapsedSize = NSSize(width: 166, height: 18)
+let expandedSize = NSSize(width: 360, height: 108)
+
 struct ContextState {
     var threadID = ""
     var threadName = "Codex thread"
@@ -229,37 +232,122 @@ final class ContextReader {
 final class ProgressView: NSView {
     var percent: Double = 0
     var barColor = NSColor.systemGreen
+    var inlineText = ""
+    var showsInlineText = false
+    var onClick: (() -> Void)?
+    private var didDrag = false
+
+    override func mouseDown(with event: NSEvent) {
+        didDrag = false
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        didDrag = true
+        window?.performDrag(with: event)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        if !didDrag {
+            onClick?()
+        }
+    }
 
     override func draw(_ dirtyRect: NSRect) {
         let radius = bounds.height / 2
         let background = NSBezierPath(roundedRect: bounds, xRadius: radius, yRadius: radius)
-        NSColor(calibratedWhite: 1.0, alpha: 0.13).setFill()
+        NSColor(calibratedWhite: 1.0, alpha: showsInlineText ? 0.18 : 0.13).setFill()
         background.fill()
 
         let fillWidth = bounds.width * max(0, min(1, percent))
         let fillRect = NSRect(x: bounds.minX, y: bounds.minY, width: fillWidth, height: bounds.height)
         let fill = NSBezierPath(roundedRect: fillRect, xRadius: radius, yRadius: radius)
-        barColor.setFill()
+        (showsInlineText ? barColor.withAlphaComponent(0.82) : barColor).setFill()
         fill.fill()
 
         let glossRect = NSRect(x: bounds.minX + 3, y: bounds.midY, width: max(0, fillWidth - 6), height: bounds.height / 3)
         let gloss = NSBezierPath(roundedRect: glossRect, xRadius: radius / 2, yRadius: radius / 2)
-        NSColor.white.withAlphaComponent(0.28).setFill()
+        NSColor.white.withAlphaComponent(showsInlineText ? 0.16 : 0.28).setFill()
         gloss.fill()
+
+    }
+}
+
+final class InlineLabelView: NSView {
+    var text = "" {
+        didSet { needsDisplay = true }
+    }
+
+    override var isFlipped: Bool { true }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        nil
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        guard !text.isEmpty else { return }
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = .center
+
+        var fontSize: CGFloat = 9.4
+        while fontSize > 8.0 {
+            let testAttributes: [NSAttributedString.Key: Any] = [
+                .font: NSFont.systemFont(ofSize: fontSize, weight: .regular)
+            ]
+            if (text as NSString).size(withAttributes: testAttributes).width <= bounds.width - 10 {
+                break
+            }
+            fontSize -= 0.4
+        }
+
+        let font = NSFont.systemFont(ofSize: fontSize, weight: .regular)
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor(calibratedWhite: 0.12, alpha: 0.82),
+            .paragraphStyle: paragraph
+        ]
+        let textHeight = ceil(font.ascender - font.descender)
+        let textRect = NSRect(
+            x: bounds.minX + 5,
+            y: bounds.midY - textHeight / 2 - 0.5,
+            width: bounds.width - 10,
+            height: textHeight + 2
+        )
+        (text as NSString).draw(in: textRect, withAttributes: attributes)
     }
 }
 
 final class RoundedCardView: NSView {
+    var isExpanded = false {
+        didSet { needsDisplay = true }
+    }
+    var onClick: (() -> Void)?
+    private var didDrag = false
+
     override var isFlipped: Bool { true }
 
     override func mouseDown(with event: NSEvent) {
+        didDrag = false
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        didDrag = true
         window?.performDrag(with: event)
     }
 
+    override func mouseUp(with event: NSEvent) {
+        if !didDrag, isExpanded {
+            onClick?()
+        }
+    }
+
     override func draw(_ dirtyRect: NSRect) {
+        if !isExpanded {
+            return
+        }
+
         let cardBounds = NSRect(x: 1, y: 1, width: bounds.width - 2, height: bounds.height - 2)
         let path = NSBezierPath(roundedRect: cardBounds, xRadius: 22, yRadius: 22)
-        NSColor(calibratedRed: 0.08, green: 0.13, blue: 0.18, alpha: 0.42).setFill()
+        NSColor(calibratedRed: 0.08, green: 0.13, blue: 0.18, alpha: 0.34).setFill()
         path.fill()
 
         NSColor.white.withAlphaComponent(0.10).setStroke()
@@ -295,11 +383,12 @@ final class PillLabel: NSTextField {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let reader = ContextReader()
     let window = NSPanel(
-        contentRect: NSRect(x: 0, y: 0, width: 360, height: 108),
+        contentRect: NSRect(origin: .zero, size: collapsedSize),
         styleMask: [.borderless, .nonactivatingPanel],
         backing: .buffered,
         defer: false
     )
+    let content = RoundedCardView(frame: NSRect(origin: .zero, size: collapsedSize))
     let titleLabel = NSTextField(labelWithString: "上下文能量")
     let statsLabel = NSTextField(labelWithString: "Lv0 · 0% · XP0")
     let modeLabel = PillLabel("当前", frame: NSRect(x: 22, y: 82, width: 42, height: 18))
@@ -309,6 +398,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let autoButton = NSButton(title: "自动", target: nil, action: nil)
     let closeButton = NSButton(title: "×", target: nil, action: nil)
     let progress = ProgressView(frame: NSRect(x: 22, y: 44, width: 252, height: 11))
+    let inlineLabel = InlineLabelView(frame: NSRect(origin: .zero, size: collapsedSize))
     let readerQueue = DispatchQueue(label: "local.codex.contextpetbar.reader", qos: .utility)
     var manualMode = false
     var manualPath: URL?
@@ -316,6 +406,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var lastObservedSize: UInt64 = 0
     var lastObservedMtime = Date.distantPast
     var isRefreshing = false
+    var isExpanded = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
@@ -324,6 +415,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Timer.scheduledTimer(withTimeInterval: 12.0, repeats: true) { [weak self] _ in self?.refreshIfChanged() }
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+            self?.collapse(animated: false)
+        }
     }
 
     func configureWindow() {
@@ -338,11 +432,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         if let screenFrame = NSScreen.main?.visibleFrame {
             let x = screenFrame.maxX - window.frame.width - 72
-            let y = screenFrame.minY + 210
+            let y = screenFrame.minY + 24
             window.setFrameOrigin(NSPoint(x: x, y: y))
         }
 
-        let content = RoundedCardView(frame: NSRect(x: 0, y: 0, width: 360, height: 108))
         content.wantsLayer = true
         content.layer?.cornerRadius = 22
         content.layer?.masksToBounds = false
@@ -357,6 +450,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statsLabel.alignment = .right
         statsLabel.font = .systemFont(ofSize: 13, weight: .bold)
         statsLabel.lineBreakMode = .byTruncatingTail
+        statsLabel.cell?.usesSingleLineMode = true
 
         hintLabel.frame = NSRect(x: 22, y: 62, width: 252, height: 20)
         hintLabel.textColor = NSColor(calibratedWhite: 1, alpha: 0.82)
@@ -382,15 +476,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         closeButton.target = NSApp
         closeButton.action = #selector(NSApplication.terminate(_:))
 
+        progress.onClick = { [weak self] in self?.toggleExpanded() }
+        content.onClick = { [weak self] in self?.collapse(animated: true) }
+
         content.addSubview(titleLabel)
-        content.addSubview(statsLabel)
         content.addSubview(modeLabel)
         content.addSubview(threadLabel)
         content.addSubview(progress)
+        content.addSubview(statsLabel)
+        content.addSubview(inlineLabel)
         content.addSubview(hintLabel)
         content.addSubview(switchButton)
         content.addSubview(autoButton)
         content.addSubview(closeButton)
+        updateLayout(animated: false)
     }
 
     func configureMiniButton(_ button: NSButton, frame: NSRect, action: Selector) {
@@ -453,6 +552,58 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         refresh(force: true)
     }
 
+    func toggleExpanded() {
+        isExpanded.toggle()
+        updateLayout(animated: true)
+    }
+
+    func collapse(animated: Bool) {
+        isExpanded = false
+        updateLayout(animated: animated)
+    }
+
+    func updateLayout(animated: Bool) {
+        let targetSize = isExpanded ? expandedSize : collapsedSize
+        let oldFrame = window.frame
+        let visibleFrame = NSScreen.main?.visibleFrame ?? oldFrame
+        let anchoredRight = min(oldFrame.maxX, visibleFrame.maxX - 16)
+        let newOrigin = NSPoint(
+            x: max(visibleFrame.minX + 16, anchoredRight - targetSize.width),
+            y: max(visibleFrame.minY + 16, min(oldFrame.minY, visibleFrame.maxY - targetSize.height - 16))
+        )
+        let newFrame = NSRect(origin: newOrigin, size: targetSize)
+        window.setFrame(newFrame, display: true, animate: animated)
+        content.frame = NSRect(origin: .zero, size: targetSize)
+        content.isExpanded = isExpanded
+        content.needsDisplay = true
+
+        titleLabel.isHidden = !isExpanded
+        hintLabel.isHidden = !isExpanded
+        modeLabel.isHidden = !isExpanded
+        threadLabel.isHidden = !isExpanded
+        switchButton.isHidden = !isExpanded
+        autoButton.isHidden = !isExpanded
+        closeButton.isHidden = !isExpanded
+
+        if isExpanded {
+            statsLabel.isHidden = false
+            inlineLabel.isHidden = true
+            statsLabel.frame = NSRect(x: 132, y: 14, width: 190, height: 24)
+            statsLabel.alignment = .right
+            statsLabel.font = .systemFont(ofSize: 13, weight: .bold)
+            statsLabel.textColor = NSColor(calibratedWhite: 0.98, alpha: 1)
+            progress.frame = NSRect(x: 22, y: 44, width: 252, height: 11)
+            progress.showsInlineText = false
+        } else {
+            progress.frame = NSRect(x: 0, y: 0, width: targetSize.width, height: targetSize.height)
+            statsLabel.isHidden = true
+            inlineLabel.isHidden = false
+            inlineLabel.frame = progress.frame
+            progress.showsInlineText = true
+        }
+        progress.needsDisplay = true
+    }
+
     func refreshIfChanged() {
         let path = manualMode ? manualPath : reader.latestRolloutPath()
         guard let path, let meta = reader.metadata(for: path) else {
@@ -512,7 +663,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         modeLabel.stringValue = manualMode ? "手动" : "当前"
         modeLabel.layer?.backgroundColor = (manualMode ? NSColor.systemOrange : NSColor.systemGreen).withAlphaComponent(0.30).cgColor
         threadLabel.stringValue = threadName
-        statsLabel.stringValue = "Lv\(state.level) · \(percent)% · XP\(compactNumber(state.totalTokens))"
+        let statsText = "Lv\(state.level) · \(percent)% · XP\(compactNumber(state.totalTokens))"
+        statsLabel.stringValue = statsText
+        progress.inlineText = statsText
+        inlineLabel.text = statsText
         progress.percent = Double(percent) / 100.0
         progress.needsDisplay = true
     }
